@@ -195,6 +195,10 @@ class SampleSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
+		containerEl.createEl('h1', {text: 'Wakatime / Wakapi Plugin'});
+		containerEl.createEl('p').innerHTML = 'by <a href="https://kovah.de" target="_blank">Kevin Woblick</a>';
+		containerEl.createEl('br');
+
 		containerEl.createEl('h2', {text: 'Base Settings'});
 
 		new Setting(containerEl)
@@ -281,5 +285,9 @@ class SampleSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				})
 			);
+
+		containerEl.createEl('br');
+		containerEl.createEl('hr');
+		containerEl.createEl('small').innerHTML = '❤️ Support my work via <a href="https://patreon.com/Kovah" target="_blank">Patreon</a>, <a href="https://github.com/Kovah" target="_blank">GitHub Sponsors</a> or <a href="https://liberapay.com/kovah" target="_blank">Liberapay</a>';
 	}
 }
