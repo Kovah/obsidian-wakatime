@@ -238,8 +238,7 @@ class SampleSettingTab extends PluginSettingTab {
 				.setPlaceholder('https://wakapi.my-apps.com')
 				.setValue(this.plugin.settings.apiUrl ? this.plugin.settings.apiUrl : '')
 				.onChange(async (value) => {
-					const parsedUrl = new URL(value);
-					this.plugin.settings.apiUrl = parsedUrl.origin;
+					this.plugin.settings.apiUrl = value !== '' ? (new URL(value)).origin : null;
 					await this.plugin.saveSettings();
 				})
 			);
