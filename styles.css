@@ -1,8 +1,14 @@
-/*
+/**
+ * (C) Copyright 2025 Kevin Woblick
+ */
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.wakatimekvh-input input {
+	min-width: 30ch;
+	max-width: 100%;
+}
 
-If your plugin does not need CSS, delete this file.
-
-*/
+.wakatimekvh-textarea textarea {
+	min-width: 50ch;
+	max-width: 100%;
+	min-height: 100px;
+}

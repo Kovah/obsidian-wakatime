@@ -1,85 +1,65 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import {
+	App,
+	EditorPosition,
+	FileSystemAdapter,
+	FileView,
+	MarkdownView,
+	Notice,
+	Plugin,
+	PluginSettingTab,
+	Setting,
+	TFile
+} from 'obsidian';
 
-// Remember to rename these classes and interfaces!
-
-interface MyPluginSettings {
-	mySetting: string;
+interface ObsidianWakatimeSettings {
+	enabled: boolean;
+	apiKey: string | null;
+	apiUrl: string | null;
+	defaultProject: string | null;
+	ignoreList: string[];
+	projectAssociation: string[];
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
-}
+const DEFAULT_SETTINGS: ObsidianWakatimeSettings = {
+	enabled: false,
+	apiKey: null,
+	apiUrl: null,
+	defaultProject: null,
+	ignoreList: [],
+	projectAssociation: []
+};
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class ObsidianWakatime extends Plugin {
+	settings: ObsidianWakatimeSettings;
+	statusBar: HTMLElement;
+	lastFile: string;
+	lastHeartbeat = 0;
+	maxHeartbeatInterval = 120_000; // send a heartbeat max every 2 min per file
 
 	async onload() {
 		await this.loadSettings();
 
-		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-		// Perform additional things with the ribbon
-		ribbonIconEl.addClass('my-plugin-ribbon-class');
+		this.statusBar = this.addStatusBarItem();
+		this.updateStatusBarText(this.settings.enabled ? 'Enabled' : 'Disabled');
 
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
-
-		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
-			id: 'open-sample-modal-simple',
-			name: 'Open sample modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'sample-editor-command',
-			name: 'Sample editor command',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				console.log(editor.getSelection());
-				editor.replaceSelection('Sample Editor Command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-sample-modal-complex',
-			name: 'Open sample modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
+			id: 'wakatime-plugin-toggle-enabled',
+			name: 'Enable/Disable the Plugin',
+			callback: async () => {
+				this.settings.enabled = !this.settings.enabled;
+				await this.saveSettings();
+				new Notice('Wakatime Plugin is now ' + (this.settings.enabled ? 'enabled' : 'disabled'));
+				this.updateStatusBarText();
 			}
 		});
 
-		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
 
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
+		this.setupEventListeners();
 	}
 
 	onunload() {
-
+		// nothing to do here
 	}
 
 	async loadSettings() {
@@ -89,28 +69,123 @@ export default class MyPlugin extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
-}
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
+	private setupEventListeners(): void {
+		this.registerDomEvent(document, 'click', () => {
+			this.onEvent(false);
+		});
+		this.registerDomEvent(document, 'keydown', () => {
+			this.onEvent(false);
+		});
 	}
 
-	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
+	private onEvent(isWrite: boolean) {
+		if (!this.settings.enabled) return;
+
+		// check if a real file is opened
+		const view = this.app.workspace.getActiveViewOfType(FileView);
+		if (!view) return;
+
+		// check if a file is actively viewed
+		const activeFile = this.app.workspace.getActiveFile();
+		if (!activeFile) return;
+
+		// check if the current file matches a path from the ignore list
+		if (this.settings.ignoreList.some(ignored => ignored.contains(activeFile.path) || activeFile.path.contains(ignored))) return;
+
+		const time: number = Date.now();
+		let cursor: EditorPosition | null = null;
+		if (view instanceof MarkdownView) {
+			cursor = view.editor.getCursor();
+		}
+
+		if (isWrite || this.enoughTimePassed(time) || this.lastFile !== activeFile.path) {
+			this.sendHeartbeat(activeFile, time, cursor?.line, cursor?.ch, isWrite);
+			this.lastFile = activeFile.path;
+			this.lastHeartbeat = time;
+		}
 	}
 
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
+	private enoughTimePassed(time: number): boolean {
+		return this.lastHeartbeat + this.maxHeartbeatInterval < time;
+	}
+
+	private sendHeartbeat(file: TFile, time: number, line: number | undefined, cursorPosition: number | undefined, isWrite: boolean) {
+		if (!this.settings.enabled) return;
+
+		const apiUrl = `${this.settings.apiUrl ? this.settings.apiUrl : 'https://api.wakatime.com'}/api/v1/users/current/heartbeats`;
+		// @ts-ignore
+		const auth = this.settings.apiUrl ? `Basic ${btoa(this.settings.apiKey)}` : `Bearer ${this.settings.apiKey}`;
+		const filePath = `${(this.app.vault.adapter as FileSystemAdapter).getBasePath()}/${file.path}`;
+		const lang = this.getLanguageForFile(file);
+
+		fetch(apiUrl, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Authorization': auth
+			},
+			body: JSON.stringify({
+				time: time / 1000,
+				entity: filePath,
+				type: 'file',
+				project: this.getProjectForFile(file),
+				language: lang,
+				is_write: isWrite,
+				cursorpos: cursorPosition,
+				lineno: line,
+				editor: 'Obsidian',
+				category: lang ? 'writing' : 'reading'
+			})
+		})
+			.then(response => {
+				if (!response.ok) {
+					this.updateStatusBarText('Network Error');
+					throw new Error('Network response was not ok');
+				}
+				return response.json();
+			})
+			.then(data => {
+				this.updateStatusBarText();
+				console.log('Heartbeat sent successfully:', data);
+			})
+			.catch(error => {
+				this.updateStatusBarText('Unexpected Error');
+				console.error('There was a problem with the fetch operation:', error);
+			});
+	}
+
+	private getProjectForFile(file: TFile): string {
+		for (const association of this.settings.projectAssociation) {
+			const [path, project] = association.split('@');
+			if (!path || !project || association.split('@').length !== 2) continue;
+			if (file.path.includes(path)) {
+				return project;
+			}
+		}
+		return this.settings.defaultProject ? this.settings.defaultProject : this.app.vault.getName();
+	}
+
+	private getLanguageForFile(file: TFile): string | null {
+		const extension = file.extension;
+		switch (extension) {
+			case 'md':
+				return 'Markdown';
+			default:
+				return null;
+		}
+	}
+
+	public updateStatusBarText(text: string | null = null) {
+		const enabledText = this.settings.enabled ? 'Enabled' : 'Disabled';
+		this.statusBar.setText(`⏱️ ` + (text !== null ? text : enabledText));
 	}
 }
 
 class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+	plugin: ObsidianWakatime;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: ObsidianWakatime) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -120,15 +195,92 @@ class SampleSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
+		containerEl.createEl('h2', {text: 'Base Settings'});
+
 		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
+			.setName('Enable the Plugin')
+			.setDesc('Once you configured the plugin to your needs, enable it here.')
+			.setClass('wakatimekvh-input')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enabled)
 				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
+					if (toggle.disabled) return;
+					if (!this.plugin.settings.apiKey) {
+						new Notice('Please set a valid API key first.');
+						toggle.setDisabled(true).setValue(false);
+						return;
+					}
+					this.plugin.settings.enabled = value;
+					await this.plugin.saveSettings();
+					this.plugin.updateStatusBarText(this.plugin.settings.enabled ? 'Enabled' : 'Disabled');
+				}));
+
+		new Setting(containerEl)
+			.setName('API Key')
+			.setDesc('Enter your Wakatime / Wakapi API Key')
+			.setClass('wakatimekvh-input')
+			.addText(text => text
+				.setPlaceholder('81cee032-f24...')
+				.setValue(this.plugin.settings.apiKey ? this.plugin.settings.apiKey : '')
+				.onChange(async (value) => {
+					this.plugin.settings.apiKey = value;
 					await this.plugin.saveSettings();
 				}));
+
+		containerEl.createEl('br');
+		containerEl.createEl('h2', {text: 'Optional Settings'});
+
+		new Setting(containerEl)
+			.setName('Wakapi URL')
+			.setDesc('Set the URL of your Wakapi setup here, without any path like /api/v1')
+			.setClass('wakatimekvh-input')
+			.addText(text => text
+				.setPlaceholder('https://wakapi.my-apps.com')
+				.setValue(this.plugin.settings.apiUrl ? this.plugin.settings.apiUrl : '')
+				.onChange(async (value) => {
+					const parsedUrl = new URL(value);
+					this.plugin.settings.apiUrl = parsedUrl.origin;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName('Default Project')
+			.setDesc('Set a specific project for your Vault. If empty, the Vault name will be used')
+			.setClass('wakatimekvh-input')
+			.addText(text => text
+				.setPlaceholder('My Project')
+				.setValue(this.plugin.settings.defaultProject ? this.plugin.settings.defaultProject : '')
+				.onChange(async (value) => {
+					this.plugin.settings.defaultProject = value;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName('Ignore List')
+			.setDesc('Specify paths that should be ignored and not tracked. One entry per line.\nPaths may either be absolute or relative from the root of your Vault.')
+			.setClass('wakatimekvh-textarea')
+			.addTextArea(text => text
+				.setPlaceholder('/Users/kevin/Obsidian Notes/some/ignored/folder\nor\nsome/ignored/folder/specific note.md')
+				.setValue(this.plugin.settings.ignoreList.join('\n'))
+				.onChange(async (value) => {
+					this.plugin.settings.ignoreList = value.split('\n');
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName('Project Association')
+			.setDesc('Define which paths or files should be assigned a specific project. Use the [path]@[project name] syntax.\nPaths may either be absolute or relative from the root of your Vault.')
+			.setClass('wakatimekvh-textarea')
+			.addTextArea(text => text
+				.setPlaceholder('/Users/kevin/Obsidian Notes/path/to/project@myProject\nor\npath/to/project/notes.md@another Project')
+				.setValue(this.plugin.settings.projectAssociation.join('\n'))
+				.onChange(async (value) => {
+					this.plugin.settings.projectAssociation = value.split('\n');
+					await this.plugin.saveSettings();
+				})
+			);
 	}
 }
