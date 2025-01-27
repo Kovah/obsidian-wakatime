@@ -13,15 +13,18 @@ I built this plugin, as the official WakaTime plugin misses some features and do
 
 
 ## Features
-- Track time spent on notes in Obsidian.
-- Configure API key and custom Wakapi URL.
+
+- Either connect with Wakatime or set a custom URL to your Wakapi instance.
 - Set a default project or associate folders or files with different projects.
-- Ignore specific files or folders from being tracked.
+- Ignore specific files or folders from being tracked with a custom ignore list.
+- Not only Markdown files, but also PDFs or images are tracked.
+- Markdown is correctly set as a language for corresponding files.
+- Lightweight installation without usage of the wakatime-cli client.
 
 
 ## Installation
 
-### From Community Plugins
+### From Community Plugins (Coming soon...)
 1. Open Obsidian.
 2. Go to `Settings` > `Community plugins`.
 3. Click on `Browse` and search for `Wakatime / Wakapi`.
@@ -31,7 +34,7 @@ I built this plugin, as the official WakaTime plugin misses some features and do
 1. Download the latest release from the [GitHub releases page](https://github.com/kovah/obsidian-wakatime/releases).
 2. Extract the downloaded zip file.
 3. Copy the extracted folder to your Obsidian plugins directory: `/.obsidian/plugins/`.
-4. Open Obsidian and go to `Settings` > `Community plugins`.
+4. Open Obsidian and go to `Settings` > `Community plugins`. Click the reload icon.
 5. Find `Wakatime / Wakapi` and click `Enable`.
 
 
