@@ -21,15 +21,15 @@ jobs:
         run: |
           npm ci
           npm run build
-          mkdir obsidian-wakatime-wakapi
-          mv main.js obsidian-wakatime-wakapi/
-          mv manifest.json obsidian-wakatime-wakapi/
-          mv styles.css obsidian-wakatime-wakapi/
-          mv LICENSE.md obsidian-wakatime-wakapi/
-          mv README.md obsidian-wakatime-wakapi/
+          mkdir dist
+          cp main.js dist/
+          cp manifest.json dist/
+          cp styles.css dist/
+          cp LICENSE.md dist/
+          cp README.md dist/
 
       - uses: actions/upload-artifact@v4
         with:
-          name: release-package
+          name: obsidian-wakatime-wakapi-package
           retention-days: 7
-          path: obsidian-wakatime-wakapi
+          path: dist
