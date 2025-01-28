@@ -41,7 +41,7 @@ export default class ObsidianWakatime extends Plugin {
 		await this.loadSettings();
 
 		this.statusBar = this.addStatusBarItem();
-		this.updateStatusBarText(this.settings.enabled ? 'Enabled' : 'Disabled');
+		this.updateStatusBarText();
 
 		this.addCommand({
 			id: 'wakatime-plugin-toggle-enabled',
@@ -226,7 +226,7 @@ class SampleSettingTab extends PluginSettingTab {
 					}
 					this.plugin.settings.enabled = value;
 					await this.plugin.saveSettings();
-					this.plugin.updateStatusBarText(this.plugin.settings.enabled ? 'Enabled' : 'Disabled');
+					this.plugin.updateStatusBarText();
 				}));
 
 		new Setting(containerEl)
