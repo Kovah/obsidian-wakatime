@@ -5,7 +5,7 @@
 	"minAppVersion": "1.0.0",
 	"description": "Connect your Obsidian to Wakatime or Wakapi to track the time spent while browsing or writing notes.",
 	"author": "Kevin Woblick",
-	"authorUrl": "https://kovah.de",
-	"fundingUrl": "https://kovah.de",
+	"authorUrl": "https://github.com/Kovah/obsidian-wakatime",
+	"fundingUrl": "https://github.com/Kovah/obsidian-wakatime",
 	"isDesktopOnly": false
 }
