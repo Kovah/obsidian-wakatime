@@ -54,4 +54,8 @@ I built this plugin, as the official WakaTime plugin misses some features and do
 
 ---
 
+This project is inspired and in small parts based on the [official Wakatime plugin](https://github.com/wakatime/obsidian-wakatime) and user contributions.
+
+---
+
 ❤️ Support my work via [Patreon](https://www.patreon.com/Kovah), [Github Sponsors](https://github.com/sponsors/Kovah) or [Liberapay](https://liberapay.com/kovah/).
