@@ -1,7 +1,7 @@
 {
 	"id": "obsidian-wakatime-kvh",
 	"name": "Wakatime / Wakapi",
-	"version": "1.0.0-beta.1",
+	"version": "1.0.0",
 	"minAppVersion": "1.0.0",
 	"description": "Connect your Obsidian to Wakatime or Wakapi to track the time spent while browsing or writing notes.",
 	"author": "Kevin Woblick",
