@@ -17,7 +17,7 @@ interface ObsidianWakatimeSettings {
 	apiUrl: string | null;
 	defaultProject: string | null;
 	ignoreList: string[];
-	projectAssociation: string[];
+	projectAssociations: string[];
 }
 
 const DEFAULT_SETTINGS: ObsidianWakatimeSettings = {
@@ -26,7 +26,7 @@ const DEFAULT_SETTINGS: ObsidianWakatimeSettings = {
 	apiUrl: null,
 	defaultProject: null,
 	ignoreList: [],
-	projectAssociation: []
+	projectAssociations: []
 };
 
 export default class ObsidianWakatime extends Plugin {
@@ -35,6 +35,7 @@ export default class ObsidianWakatime extends Plugin {
 	lastFile: string;
 	lastHeartbeat = 0;
 	maxHeartbeatInterval = 120_000; // send a heartbeat max every 2 min per file
+	lastRequestWasError = false;
 
 	async onload() {
 		await this.loadSettings();
@@ -141,6 +142,10 @@ export default class ObsidianWakatime extends Plugin {
 			.then(response => {
 				if (!response.ok) {
 					this.updateStatusBarText('Network Error');
+					if (!this.lastRequestWasError) {
+						new Notice('Could not send data to Wakatime. Please check the logs.')
+					}
+					this.lastRequestWasError = true;
 					throw new Error('Network response was not ok');
 				}
 				return response.json();
@@ -148,15 +153,20 @@ export default class ObsidianWakatime extends Plugin {
 			.then(data => {
 				this.updateStatusBarText();
 				console.log('Heartbeat sent successfully:', data);
+				this.lastRequestWasError = false;
 			})
 			.catch(error => {
 				this.updateStatusBarText('Unexpected Error');
+				if (!this.lastRequestWasError) {
+					new Notice('Could not send data to Wakatime. Please check the logs.')
+				}
 				console.error('There was a problem with the fetch operation:', error);
+				this.lastRequestWasError = true;
 			});
 	}
 
 	private getProjectForFile(file: TFile): string {
-		for (const association of this.settings.projectAssociation) {
+		for (const association of this.settings.projectAssociations) {
 			const [path, project] = association.split('@');
 			if (!path || !project || association.split('@').length !== 2) continue;
 			if (file.path.includes(path)) {
@@ -227,7 +237,7 @@ class SampleSettingTab extends PluginSettingTab {
 				.setPlaceholder('81cee032-f24...')
 				.setValue(this.plugin.settings.apiKey ? this.plugin.settings.apiKey : '')
 				.onChange(async (value) => {
-					this.plugin.settings.apiKey = value;
+					this.plugin.settings.apiKey = value !== '' ? value : null;
 					await this.plugin.saveSettings();
 				}));
 
@@ -255,7 +265,7 @@ class SampleSettingTab extends PluginSettingTab {
 				.setPlaceholder('My Project')
 				.setValue(this.plugin.settings.defaultProject ? this.plugin.settings.defaultProject : '')
 				.onChange(async (value) => {
-					this.plugin.settings.defaultProject = value;
+					this.plugin.settings.defaultProject = value !== '' ? value : null;
 					await this.plugin.saveSettings();
 				})
 			);
@@ -268,7 +278,7 @@ class SampleSettingTab extends PluginSettingTab {
 				.setPlaceholder('/Users/kevin/Obsidian Notes/some/ignored/folder\nor\nsome/ignored/folder/specific note.md')
 				.setValue(this.plugin.settings.ignoreList.join('\n'))
 				.onChange(async (value) => {
-					this.plugin.settings.ignoreList = value.split('\n');
+					this.plugin.settings.ignoreList = value.length > 0 ? value.split('\n') : [];
 					await this.plugin.saveSettings();
 				})
 			);
@@ -279,9 +289,9 @@ class SampleSettingTab extends PluginSettingTab {
 			.setClass('wakatimekvh-textarea')
 			.addTextArea(text => text
 				.setPlaceholder('/Users/kevin/Obsidian Notes/path/to/project@myProject\nor\npath/to/project/notes.md@another Project')
-				.setValue(this.plugin.settings.projectAssociation.join('\n'))
+				.setValue(this.plugin.settings.projectAssociations.join('\n'))
 				.onChange(async (value) => {
-					this.plugin.settings.projectAssociation = value.split('\n');
+					this.plugin.settings.projectAssociations = value.length > 0 ? value.split('\n') : [];
 					await this.plugin.saveSettings();
 				})
 			);
