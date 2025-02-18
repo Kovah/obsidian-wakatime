@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-wakatime-kvh",
-	"version": "1.0.0",
-	"description": "Connect your Obsidian to Wakatime or Wakapi to track the time spent while browsing or writing notes.",
+	"name": "wakatime-kvh",
+	"version": "1.0.1",
+	"description": "Connect Obsidian to Wakatime or Wakapi to track the time spent while browsing or writing notes.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",

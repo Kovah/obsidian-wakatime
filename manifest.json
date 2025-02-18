@@ -1,11 +1,11 @@
 {
-	"id": "obsidian-wakatime-kvh",
+	"id": "wakatime-kvh",
 	"name": "Wakatime / Wakapi",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"minAppVersion": "1.0.0",
-	"description": "Connect your Obsidian to Wakatime or Wakapi to track the time spent while browsing or writing notes.",
+	"description": "Connect to Wakatime or Wakapi to track the time spent while browsing or writing notes.",
 	"author": "Kevin Woblick",
-	"authorUrl": "https://github.com/Kovah/obsidian-wakatime",
+	"authorUrl": "https://kovah.de",
 	"fundingUrl": "https://github.com/Kovah/obsidian-wakatime",
 	"isDesktopOnly": false
 }
