@@ -54,7 +54,7 @@ export default class ObsidianWakatime extends Plugin {
 			}
 		});
 
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.addSettingTab(new WakatimeSettingTab(this.app, this));
 
 		this.setupEventListeners();
 	}
@@ -117,7 +117,7 @@ export default class ObsidianWakatime extends Plugin {
 		const apiUrl = `${this.settings.apiUrl ? this.settings.apiUrl : 'https://api.wakatime.com'}/api/v1/users/current/heartbeats`;
 		// @ts-ignore
 		const auth = this.settings.apiUrl ? `Basic ${btoa(this.settings.apiKey)}` : `Bearer ${this.settings.apiKey}`;
-		const filePath = `${(this.app.vault.adapter as FileSystemAdapter).getBasePath()}/${file.path}`;
+		const filePath = `/${this.app.vault.getName()}/${file.path}`;
 		const lang = this.getLanguageForFile(file);
 
 		fetch(apiUrl, {
@@ -152,7 +152,6 @@ export default class ObsidianWakatime extends Plugin {
 			})
 			.then(data => {
 				this.updateStatusBarText();
-				console.log('Heartbeat sent successfully:', data);
 				this.lastRequestWasError = false;
 			})
 			.catch(error => {
@@ -192,7 +191,7 @@ export default class ObsidianWakatime extends Plugin {
 	}
 }
 
-class SampleSettingTab extends PluginSettingTab {
+class WakatimeSettingTab extends PluginSettingTab {
 	plugin: ObsidianWakatime;
 
 	constructor(app: App, plugin: ObsidianWakatime) {
@@ -202,14 +201,9 @@ class SampleSettingTab extends PluginSettingTab {
 
 	display(): void {
 		const {containerEl} = this;
-
 		containerEl.empty();
 
-		containerEl.createEl('h1', {text: 'Wakatime / Wakapi Plugin'});
-		containerEl.createEl('p').innerHTML = 'by <a href="https://kovah.de" target="_blank">Kevin Woblick</a>';
-		containerEl.createEl('br');
-
-		containerEl.createEl('h2', {text: 'Base Settings'});
+		new Setting(containerEl).setName('Basic setup').setHeading();
 
 		new Setting(containerEl)
 			.setName('Enable the Plugin')
@@ -241,8 +235,7 @@ class SampleSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		containerEl.createEl('br');
-		containerEl.createEl('h2', {text: 'Optional Settings'});
+		new Setting(containerEl).setName('Optional settings').setHeading();
 
 		new Setting(containerEl)
 			.setName('Wakapi URL')
