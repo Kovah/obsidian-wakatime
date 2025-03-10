@@ -1,4 +1,4 @@
-<h1 align="center">Obsidian Wakatime / Wakapi Plugin</h1>
+<h1 align="center">Wakatime / Wakapi Plugin for Obsidian</h1>
 
 <p align="center">
   <picture>

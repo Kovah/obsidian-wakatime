@@ -6,7 +6,7 @@ import {
 	MarkdownView,
 	Notice,
 	Plugin,
-	PluginSettingTab,
+	PluginSettingTab, requestUrl,
 	Setting,
 	TFile
 } from 'obsidian';
@@ -120,9 +120,11 @@ export default class ObsidianWakatime extends Plugin {
 		const filePath = `/${this.app.vault.getName()}/${file.path}`;
 		const lang = this.getLanguageForFile(file);
 
-		fetch(apiUrl, {
+		requestUrl({
+			url: apiUrl,
 			method: 'POST',
 			headers: {
+				'Accept': 'application/json',
 				'Content-Type': 'application/json',
 				'Authorization': auth
 			},
@@ -140,17 +142,17 @@ export default class ObsidianWakatime extends Plugin {
 			})
 		})
 			.then(response => {
-				if (!response.ok) {
+				if (response.status >= 300) {
 					this.updateStatusBarText('Network Error');
 					if (!this.lastRequestWasError) {
 						new Notice('Could not send data to Wakatime. Please check the logs.')
 					}
 					this.lastRequestWasError = true;
-					throw new Error('Network response was not ok');
+					throw new Error('Network response was not ok: ' + response.text);
 				}
 				return response.json();
 			})
-			.then(data => {
+			.then(() => {
 				this.updateStatusBarText();
 				this.lastRequestWasError = false;
 			})
@@ -206,7 +208,7 @@ class WakatimeSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName('Basic setup').setHeading();
 
 		new Setting(containerEl)
-			.setName('Enable the Plugin')
+			.setName('Enable the plugin')
 			.setDesc('Once you configured the plugin to your needs, enable it here.')
 			.setClass('wakatimekvh-input')
 			.addToggle(toggle => toggle
@@ -224,8 +226,8 @@ class WakatimeSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('API Key')
-			.setDesc('Enter your Wakatime / Wakapi API Key')
+			.setName('API key')
+			.setDesc('Enter your Wakatime / Wakapi API key')
 			.setClass('wakatimekvh-input')
 			.addText(text => text
 				.setPlaceholder('81cee032-f24...')
@@ -235,7 +237,7 @@ class WakatimeSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl).setName('Optional settings').setHeading();
+		new Setting(containerEl).setName('Optional configuration').setHeading();
 
 		new Setting(containerEl)
 			.setName('Wakapi URL')
@@ -251,7 +253,7 @@ class WakatimeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('Default Project')
+			.setName('Default project')
 			.setDesc('Set a specific project for your Vault. If empty, the Vault name will be used')
 			.setClass('wakatimekvh-input')
 			.addText(text => text
@@ -264,7 +266,7 @@ class WakatimeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('Ignore List')
+			.setName('Ignore list')
 			.setDesc('Specify paths that should be ignored and not tracked. One entry per line.\nPaths may either be absolute or relative from the root of your Vault.')
 			.setClass('wakatimekvh-textarea')
 			.addTextArea(text => text
@@ -277,7 +279,7 @@ class WakatimeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName('Project Association')
+			.setName('Project association')
 			.setDesc('Define which paths or files should be assigned a specific project. Use the [path]@[project name] syntax.\nPaths may either be absolute or relative from the root of your Vault.')
 			.setClass('wakatimekvh-textarea')
 			.addTextArea(text => text
