@@ -6,6 +6,10 @@
 	"description": "Connect to Wakatime or Wakapi to track the time spent while browsing or writing notes.",
 	"author": "Kevin Woblick",
 	"authorUrl": "https://kovah.de",
-	"fundingUrl": "https://github.com/sponsors/Kovah",
+	"fundingUrl": {
+		"Patreon": "https://patreon.com/Kovah",
+		"GitHub Sponsor": "https://github.com/sponsors/Kovah",
+		"Liberapay": "https://liberapay.com/kovah"
+	},
 	"isDesktopOnly": false
 }

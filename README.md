@@ -9,7 +9,7 @@
 
 This [Obsidian](https://obsidian.md) plugin allows you to track your time spent working on notes in Obsidian using [WakaTime](https://wakatime.com/) or [Wakapi](https://wakapi.dev/). This plugin sends heartbeats to the Wakatime API, recording your activity and providing insights into your productivity.
 
-I built this plugin, as the official WakaTime plugin misses some features and does not support setting a custom URL, e.g. to your own Wakapi instance.
+I built this plugin, as the official WakaTime plugin misses some features and makes it easier to set a custom URL within Obsidian, e.g. to your own Wakapi instance.
 
 
 ## Features

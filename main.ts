@@ -1,7 +1,6 @@
 import {
 	App,
 	EditorPosition,
-	FileSystemAdapter,
 	FileView,
 	MarkdownView,
 	Notice,
@@ -45,7 +44,7 @@ export default class ObsidianWakatime extends Plugin {
 
 		this.addCommand({
 			id: 'wakatime-plugin-toggle-enabled',
-			name: 'Enable/Disable the Plugin',
+			name: 'Enable/Disable the plugin',
 			callback: async () => {
 				this.settings.enabled = !this.settings.enabled;
 				await this.saveSettings();
