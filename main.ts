@@ -149,7 +149,7 @@ export default class ObsidianWakatime extends Plugin {
 					this.lastRequestWasError = true;
 					throw new Error('Network response was not ok: ' + response.text);
 				}
-				return response.json();
+				return response.json;
 			})
 			.then(() => {
 				this.updateStatusBarText();
@@ -240,13 +240,13 @@ class WakatimeSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Wakapi URL')
-			.setDesc('Set the URL of your Wakapi setup here, without any path like /api/v1')
+			.setDesc('Set the URL of your Wakapi setup here')
 			.setClass('wakatimekvh-input')
 			.addText(text => text
 				.setPlaceholder('https://wakapi.my-apps.com')
 				.setValue(this.plugin.settings.apiUrl ? this.plugin.settings.apiUrl : '')
 				.onChange(async (value) => {
-					this.plugin.settings.apiUrl = value !== '' ? (new URL(value)).origin : null;
+					this.plugin.settings.apiUrl = value !== '' ? value : null;
 					await this.plugin.saveSettings();
 				})
 			);
