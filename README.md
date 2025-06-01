@@ -24,8 +24,8 @@ I built this plugin, as the official WakaTime plugin misses some features and ma
 
 ## Installation
 
-### From Community Plugins (Coming soon...)
-1. Open Obsidian.
+### From Community Plugins
+1. Open Obsidian or the [Plugin Marketplace](https://obsidian.md/plugins?id=wakatime-kvh).
 2. Go to `Settings` > `Community plugins`.
 3. Click on `Browse` and search for `Wakatime / Wakapi`.
 4. Click `Install` and then `Enable`.
