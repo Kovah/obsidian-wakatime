@@ -5,7 +5,8 @@ import {
 	MarkdownView,
 	Notice,
 	Plugin,
-	PluginSettingTab, requestUrl,
+	PluginSettingTab,
+	requestUrl,
 	Setting,
 	TFile
 } from 'obsidian';
@@ -17,6 +18,7 @@ interface ObsidianWakatimeSettings {
 	defaultProject: string | null;
 	ignoreList: string[];
 	projectAssociations: string[];
+	debugModeEnabled: boolean;
 }
 
 const DEFAULT_SETTINGS: ObsidianWakatimeSettings = {
@@ -25,7 +27,8 @@ const DEFAULT_SETTINGS: ObsidianWakatimeSettings = {
 	apiUrl: null,
 	defaultProject: null,
 	ignoreList: [],
-	projectAssociations: []
+	projectAssociations: [],
+	debugModeEnabled: false
 };
 
 export default class ObsidianWakatime extends Plugin {
@@ -37,7 +40,10 @@ export default class ObsidianWakatime extends Plugin {
 	lastRequestWasError = false;
 
 	async onload() {
+		await this.migratePluginData();
 		await this.loadSettings();
+
+		if (this.settings.debugModeEnabled) console.info('Loading wakatime-kvh');
 
 		this.statusBar = this.addStatusBarItem();
 		this.updateStatusBarText();
@@ -62,12 +68,20 @@ export default class ObsidianWakatime extends Plugin {
 		// nothing to do here
 	}
 
+	async migratePluginData() {
+		if (typeof this.settings?.debugModeEnabled !== 'undefined') {
+			this.settings.debugModeEnabled = false;
+			await this.saveSettings();
+		}
+	}
+
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+		if (this.settings.debugModeEnabled) console.info('Saved new settings', {'settings': this.settings});
 	}
 
 	private setupEventListeners(): void {
@@ -80,6 +94,7 @@ export default class ObsidianWakatime extends Plugin {
 	}
 
 	private onEvent(isWrite: boolean) {
+		if (this.settings.debugModeEnabled) console.info('Received DOM event');
 		if (!this.settings.enabled) return;
 
 		// check if a real file is opened
@@ -119,6 +134,14 @@ export default class ObsidianWakatime extends Plugin {
 		const filePath = `/${this.app.vault.getName()}/${file.path}`;
 		const lang = this.getLanguageForFile(file);
 
+		if (this.settings.debugModeEnabled) console.info('Sending heartbeat', {
+			'url': apiUrl,
+			'auth': auth,
+			'filePath': filePath,
+			'cursorPosition': cursorPosition,
+			'isWrite': isWrite,
+		});
+
 		requestUrl({
 			url: apiUrl,
 			method: 'POST',
@@ -141,10 +164,11 @@ export default class ObsidianWakatime extends Plugin {
 			})
 		})
 			.then(response => {
+				if (this.settings.debugModeEnabled) console.info('Response from sending heartbeat', response);
 				if (response.status >= 300) {
 					this.updateStatusBarText('Network Error');
 					if (!this.lastRequestWasError) {
-						new Notice('Could not send data to Wakatime. Please check the logs.')
+						new Notice('Could not send data to Wakatime. Please check the logs.');
 					}
 					this.lastRequestWasError = true;
 					throw new Error('Network response was not ok: ' + response.text);
@@ -156,9 +180,10 @@ export default class ObsidianWakatime extends Plugin {
 				this.lastRequestWasError = false;
 			})
 			.catch(error => {
+				if (this.settings.debugModeEnabled) console.info('Error while sending heartbeat', error);
 				this.updateStatusBarText('Unexpected Error');
 				if (!this.lastRequestWasError) {
-					new Notice('Could not send data to Wakatime. Please check the logs.')
+					new Notice('Could not send data to Wakatime. Please check the logs.');
 				}
 				console.error('There was a problem with the fetch operation:', error);
 				this.lastRequestWasError = true;
@@ -226,7 +251,7 @@ class WakatimeSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('API key')
-			.setDesc('Enter your Wakatime / Wakapi API key')
+			.setDesc('Enter your Wakatime / Wakapi API key.')
 			.setClass('wakatimekvh-input')
 			.addText(text => text
 				.setPlaceholder('81cee032-f24...')
@@ -240,7 +265,7 @@ class WakatimeSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Wakapi URL')
-			.setDesc('Set the URL of your Wakapi setup here')
+			.setDesc('Set the URL of your Wakapi setup here. Leave it blank if you want to use Wakatime.')
 			.setClass('wakatimekvh-input')
 			.addText(text => text
 				.setPlaceholder('https://wakapi.my-apps.com')
@@ -289,6 +314,20 @@ class WakatimeSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				})
 			);
+
+		new Setting(containerEl).setName('Advanced settings').setHeading();
+
+		new Setting(containerEl)
+			.setName('Debug mode')
+			.setDesc('Enable the debug mode to ')
+			.setClass('wakatimekvh-input')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.debugModeEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.debugModeEnabled = value;
+					await this.plugin.saveSettings();
+					this.plugin.updateStatusBarText();
+				}));
 
 		containerEl.createEl('br');
 		containerEl.createEl('hr');
