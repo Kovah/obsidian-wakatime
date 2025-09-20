@@ -130,9 +130,10 @@ export default class ObsidianWakatime extends Plugin {
 
 		const apiUrl = `${this.settings.apiUrl ? this.settings.apiUrl : 'https://api.wakatime.com'}/api/v1/users/current/heartbeats`;
 		// @ts-ignore
-		const auth = this.settings.apiUrl ? `Basic ${btoa(this.settings.apiKey)}` : `Bearer ${this.settings.apiKey}`;
+		const auth = `Basic ${btoa(this.settings.apiKey)}`;
 		const filePath = `/${this.app.vault.getName()}/${file.path}`;
 		const lang = this.getLanguageForFile(file);
+		const project = this.getProjectForFile(file);
 
 		if (this.settings.debugModeEnabled) console.info('Sending heartbeat', {
 			'url': apiUrl,
@@ -140,6 +141,8 @@ export default class ObsidianWakatime extends Plugin {
 			'filePath': filePath,
 			'cursorPosition': cursorPosition,
 			'isWrite': isWrite,
+			'lang': lang,
+			'project': project,
 		});
 
 		requestUrl({
@@ -154,7 +157,7 @@ export default class ObsidianWakatime extends Plugin {
 				time: time / 1000,
 				entity: filePath,
 				type: 'file',
-				project: this.getProjectForFile(file),
+				project: project,
 				language: lang,
 				is_write: isWrite,
 				cursorpos: cursorPosition,
@@ -319,7 +322,7 @@ class WakatimeSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Debug mode')
-			.setDesc('Enable the debug mode to ')
+			.setDesc('Enable the debug mode in case you are having issues. The plugin will then log more details about what it is doing to the Console.')
 			.setClass('wakatimekvh-input')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.debugModeEnabled)
