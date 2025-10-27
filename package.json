@@ -16,7 +16,7 @@
 	"author": "Kevin Woblick <contact@kovah.de>",
 	"license": "MIT",
 	"devDependencies": {
-		"@types/node": "^24.9.0",
+		"@types/node": "^24.9.1",
 		"@typescript-eslint/eslint-plugin": "^8.46.2",
 		"@typescript-eslint/parser": "^8.26.0",
 		"builtin-modules": "^5.0.0",
