@@ -2,7 +2,7 @@
 	"id": "wakatime-kvh",
 	"name": "Wakatime / Wakapi",
 	"version": "1.0.7",
-	"minAppVersion": "1.0.0",
+	"minAppVersion": "1.2.3",
 	"description": "Connect to Wakatime or Wakapi to track the time spent while browsing or writing notes.",
 	"author": "Kevin Woblick",
 	"authorUrl": "https://woblick.dev",

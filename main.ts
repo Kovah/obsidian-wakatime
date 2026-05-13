@@ -85,10 +85,10 @@ export default class ObsidianWakatime extends Plugin {
 	}
 
 	private setupEventListeners(): void {
-		this.registerDomEvent(document, 'click', () => {
+		this.registerDomEvent(activeDocument, 'click', () => {
 			this.onEvent(false);
 		});
-		this.registerDomEvent(document, 'keydown', () => {
+		this.registerDomEvent(activeDocument, 'keydown', () => {
 			this.onEvent(false);
 		});
 	}
@@ -268,7 +268,7 @@ class WakatimeSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Wakapi URL')
-			.setDesc('Set the URL of your Wakapi setup here. Leave it blank if you want to use Wakatime.')
+			.setDesc('Leave it blank if you want to use Wakatime. For Wakapi, add your Wakapi domain without any path.')
 			.setClass('wakatimekvh-input')
 			.addText(text => text
 				.setPlaceholder('https://wakapi.my-apps.com')
