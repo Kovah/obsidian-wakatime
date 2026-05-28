@@ -1,6 +1,6 @@
 {
 	"id": "wakatime-kvh",
-	"name": "Wakatime / Wakapi",
+	"name": "Time tracker for Wakatime or Wakapi",
 	"version": "1.0.8",
 	"minAppVersion": "1.2.3",
 	"description": "Connect to Wakatime or Wakapi to track the time spent while browsing or writing notes.",
