@@ -160,10 +160,10 @@ export default class ObsidianWakatime extends Plugin {
 				project: project,
 				language: lang,
 				is_write: isWrite,
-				cursorpos: cursorPosition,
-				lineno: line,
+				cursorpos: cursorPosition !== undefined ? cursorPosition + 1 : undefined,
+				lineno: line !== undefined ? line + 1 : undefined,
 				editor: 'Obsidian',
-				category: lang ? 'writing' : 'reading'
+				category: lang ? 'notes' : 'browsing'
 			})
 		})
 			.then(response => {
