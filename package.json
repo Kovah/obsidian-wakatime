@@ -16,10 +16,10 @@
 	"author": "Kevin Woblick <contact@kovah.de>",
 	"license": "MIT",
 	"devDependencies": {
-		"@types/node": "^24.10.2",
-		"@typescript-eslint/eslint-plugin": "^8.50.0",
+		"@types/node": "^24.13.3",
+		"@typescript-eslint/eslint-plugin": "^8.64.0",
 		"@typescript-eslint/parser": "^8.26.0",
-		"esbuild": "^0.27.1",
+		"esbuild": "^0.28.1",
 		"obsidian": "latest",
 		"tslib": "^2.8.1",
 		"typescript": "^5.9.3"
