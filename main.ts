@@ -91,6 +91,12 @@ export default class ObsidianWakatime extends Plugin {
 		this.registerDomEvent(activeDocument, 'keydown', () => {
 			this.onEvent(false);
 		});
+		this.registerDomEvent(activeDocument, 'scroll', () => {
+			this.onEvent(false);
+		}, {capture: true});
+		this.registerDomEvent(activeDocument, 'touchmove', () => {
+			this.onEvent(false);
+		});
 	}
 
 	private onEvent(isWrite: boolean) {
