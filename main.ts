@@ -60,6 +60,7 @@ export default class ObsidianWakatime extends Plugin {
 	statusBar: HTMLElement;
 	lastFile: string;
 	lastHeartbeat = 0;
+	lastHeartbeatWasWrite = false;
 	maxHeartbeatInterval = 120_000; // send a heartbeat max every 2 min per file
 	lastRequestWasError = false;
 
@@ -101,6 +102,8 @@ export default class ObsidianWakatime extends Plugin {
 
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		// drop empty ignore list entries; an empty string matches every file path
+		this.settings.ignoreList = this.settings.ignoreList.filter(line => line.trim().length > 0);
 	}
 
 	async saveSettings() {
@@ -109,45 +112,82 @@ export default class ObsidianWakatime extends Plugin {
 	}
 
 	private setupEventListeners(): void {
-		this.registerDomEvent(activeDocument, 'click', () => {
-			this.onEvent(false);
+		// Settings and note editors can live in pop-out windows, each with their own
+		// document. activeDocument only points to the window focused at load time, so
+		// register on the main window plus every existing and future pop-out window.
+		const documents = new Set<Document>([document]);
+		this.app.workspace.iterateAllLeaves(leaf => documents.add(leaf.view.containerEl.ownerDocument));
+		documents.forEach(doc => this.registerDocumentEvents(doc));
+
+		this.registerEvent(this.app.workspace.on('window-open', (workspaceWindow) => {
+			this.registerDocumentEvents(workspaceWindow.doc);
+		}));
+	}
+
+	private registerDocumentEvents(doc: Document): void {
+		this.registerDomEvent(doc, 'click', () => {
+			this.onEvent();
 		});
-		this.registerDomEvent(activeDocument, 'keydown', () => {
-			this.onEvent(false);
+		this.registerDomEvent(doc, 'keydown', () => {
+			this.onEvent();
 		});
-		this.registerDomEvent(activeDocument, 'scroll', () => {
-			this.onEvent(false);
+		this.registerDomEvent(doc, 'scroll', () => {
+			this.onEvent();
 		}, {capture: true});
-		this.registerDomEvent(activeDocument, 'touchmove', () => {
-			this.onEvent(false);
+		this.registerDomEvent(doc, 'touchmove', () => {
+			this.onEvent();
 		});
 	}
 
-	private onEvent(isWrite: boolean) {
-		if (this.settings.debugModeEnabled) console.info('Received DOM event');
-		if (!this.settings.enabled) return;
+	private onEvent() {
+		const debug = this.settings.debugModeEnabled;
+		if (debug) console.info('Received event');
+		if (!this.settings.enabled) {
+			if (debug) console.info('Skipping event: plugin is disabled');
+			return;
+		}
 
 		// check if a real file is opened
 		const view = this.app.workspace.getActiveViewOfType(FileView);
-		if (!view) return;
+		if (!view) {
+			if (debug) console.info('Skipping event: no active file view');
+			return;
+		}
 
 		// check if a file is actively viewed
 		const activeFile = this.app.workspace.getActiveFile();
-		if (!activeFile) return;
+		if (!activeFile) {
+			if (debug) console.info('Skipping event: no active file');
+			return;
+		}
 
 		// check if the current file matches a path from the ignore list
-		if (this.settings.ignoreList.some(ignored => ignored.contains(activeFile.path) || activeFile.path.contains(ignored))) return;
+		if (this.settings.ignoreList.some(ignored => ignored.contains(activeFile.path) || activeFile.path.contains(ignored))) {
+			if (debug) console.info('Skipping event: file is on the ignore list', {'file': activeFile.path});
+			return;
+		}
 
 		const time: number = Date.now();
 		let cursor: EditorPosition | null = null;
+		// a markdown view in editing mode counts as writing, reading mode and other views as idle
+		let isWrite = false;
 		if (view instanceof MarkdownView) {
 			cursor = view.editor.getCursor();
+			isWrite = view.getMode() === 'source';
 		}
 
-		if (isWrite || this.enoughTimePassed(time) || this.lastFile !== activeFile.path) {
+		// send a heartbeat if enough time passed, the file changed, or the editing
+		// mode changed since the last heartbeat
+		if (this.enoughTimePassed(time) || this.lastFile !== activeFile.path || isWrite !== this.lastHeartbeatWasWrite) {
 			this.sendHeartbeat(activeFile, time, cursor?.line, cursor?.ch, isWrite);
 			this.lastFile = activeFile.path;
 			this.lastHeartbeat = time;
+			this.lastHeartbeatWasWrite = isWrite;
+		} else if (debug) {
+			console.info('Skipping heartbeat: waiting for the max heartbeat interval to pass', {
+				'file': activeFile.path,
+				'nextHeartbeatInMs': this.lastHeartbeat + this.maxHeartbeatInterval - time
+			});
 		}
 	}
 
@@ -272,10 +312,9 @@ class WakatimeSettingTab extends PluginSettingTab {
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.enabled)
 				.onChange(async (value) => {
-					if (toggle.disabled) return;
-					if (!this.plugin.settings.apiKey) {
+					if (value && !this.plugin.settings.apiKey) {
 						new Notice('Please set a valid API key first.');
-						toggle.setDisabled(true).setValue(false);
+						toggle.setValue(false);
 						return;
 					}
 					this.plugin.settings.enabled = value;
@@ -331,7 +370,7 @@ class WakatimeSettingTab extends PluginSettingTab {
 				.setPlaceholder('/Users/kevin/Obsidian Notes/some/ignored/folder\nor\nsome/ignored/folder/specific note.md')
 				.setValue(this.plugin.settings.ignoreList.join('\n'))
 				.onChange(async (value) => {
-					this.plugin.settings.ignoreList = value.length > 0 ? value.split('\n') : [];
+					this.plugin.settings.ignoreList = value.split('\n').filter(line => line.trim().length > 0);
 					await this.plugin.saveSettings();
 				})
 			);
