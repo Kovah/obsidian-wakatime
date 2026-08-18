@@ -11,6 +11,26 @@ import {
 	TFile
 } from 'obsidian';
 
+// Categories accepted by the Wakatime heartbeats API. Other values are rejected with a 400 error.
+const WAKATIME_CATEGORIES = [
+	'coding',
+	'building',
+	'indexing',
+	'debugging',
+	'browsing',
+	'running tests',
+	'writing tests',
+	'manual testing',
+	'writing docs',
+	'communicating',
+	'code reviewing',
+	'notes',
+	'researching',
+	'learning',
+	'designing',
+	'ai coding'
+];
+
 interface ObsidianWakatimeSettings {
 	enabled: boolean;
 	apiKey: string | null;
@@ -18,6 +38,8 @@ interface ObsidianWakatimeSettings {
 	defaultProject: string | null;
 	ignoreList: string[];
 	projectAssociations: string[];
+	writeCategory: string;
+	idleCategory: string;
 	debugModeEnabled: boolean;
 }
 
@@ -28,6 +50,8 @@ const DEFAULT_SETTINGS: ObsidianWakatimeSettings = {
 	defaultProject: null,
 	ignoreList: [],
 	projectAssociations: [],
+	writeCategory: 'writing docs',
+	idleCategory: 'notes',
 	debugModeEnabled: false
 };
 
@@ -149,6 +173,7 @@ export default class ObsidianWakatime extends Plugin {
 			'isWrite': isWrite,
 			'lang': lang,
 			'project': project,
+			category: isWrite ? this.settings.writeCategory : this.settings.idleCategory
 		});
 
 		requestUrl({
@@ -169,7 +194,7 @@ export default class ObsidianWakatime extends Plugin {
 				cursorpos: cursorPosition !== undefined ? cursorPosition + 1 : undefined,
 				lineno: line !== undefined ? line + 1 : undefined,
 				editor: 'Obsidian',
-				category: lang ? 'notes' : 'browsing'
+				category: isWrite ? this.settings.writeCategory : this.settings.idleCategory
 			})
 		})
 			.then(response => {
@@ -320,6 +345,34 @@ class WakatimeSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.projectAssociations.join('\n'))
 				.onChange(async (value) => {
 					this.plugin.settings.projectAssociations = value.length > 0 ? value.split('\n') : [];
+					await this.plugin.saveSettings();
+				})
+			);
+
+		const categoryOptions = Object.fromEntries(WAKATIME_CATEGORIES.map(category => [category, category]));
+
+		new Setting(containerEl)
+			.setName('Category while writing')
+			.setDesc('Category reported to Wakatime while you are actively writing.')
+			.setClass('wakatimekvh-input')
+			.addDropdown(dropdown => dropdown
+				.addOptions(categoryOptions)
+				.setValue(this.plugin.settings.writeCategory)
+				.onChange(async (value) => {
+					this.plugin.settings.writeCategory = value;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName('Category while idle')
+			.setDesc('Category reported to Wakatime while you are viewing or navigating notes.')
+			.setClass('wakatimekvh-input')
+			.addDropdown(dropdown => dropdown
+				.addOptions(categoryOptions)
+				.setValue(this.plugin.settings.idleCategory)
+				.onChange(async (value) => {
+					this.plugin.settings.idleCategory = value;
 					await this.plugin.saveSettings();
 				})
 			);
