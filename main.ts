@@ -1,9 +1,11 @@
 import {
+	apiVersion,
 	App,
 	EditorPosition,
 	FileView,
 	MarkdownView,
 	Notice,
+	Platform,
 	Plugin,
 	PluginSettingTab,
 	requestUrl,
@@ -36,6 +38,7 @@ interface ObsidianWakatimeSettings {
 	apiKey: string | null;
 	apiUrl: string | null;
 	defaultProject: string | null;
+	machineName: string | null;
 	ignoreList: string[];
 	projectAssociations: string[];
 	writeCategory: string;
@@ -48,6 +51,7 @@ const DEFAULT_SETTINGS: ObsidianWakatimeSettings = {
 	apiKey: null,
 	apiUrl: null,
 	defaultProject: null,
+	machineName: null,
 	ignoreList: [],
 	projectAssociations: [],
 	writeCategory: 'writing docs',
@@ -204,6 +208,8 @@ export default class ObsidianWakatime extends Plugin {
 		const filePath = `/${this.app.vault.getName()}/${file.path}`;
 		const lang = this.getLanguageForFile(file);
 		const project = this.getProjectForFile(file);
+		const plugin = this.getPluginIdentifier();
+		const machineName = this.getMachineName();
 
 		if (this.settings.debugModeEnabled) console.info('Sending heartbeat', {
 			'url': apiUrl,
@@ -213,17 +219,23 @@ export default class ObsidianWakatime extends Plugin {
 			'isWrite': isWrite,
 			'lang': lang,
 			'project': project,
+			'plugin': plugin,
+			'machineName': machineName,
 			category: isWrite ? this.settings.writeCategory : this.settings.idleCategory
 		});
+
+		const headers: Record<string, string> = {
+			'Accept': 'application/json',
+			'Content-Type': 'application/json',
+			'Authorization': auth
+		};
+		// Wakatime reads the machine from this header. Encode it, since header values must be ASCII.
+		if (machineName) headers['X-Machine-Name'] = encodeURIComponent(machineName);
 
 		requestUrl({
 			url: apiUrl,
 			method: 'POST',
-			headers: {
-				'Accept': 'application/json',
-				'Content-Type': 'application/json',
-				'Authorization': auth
-			},
+			headers: headers,
 			body: JSON.stringify({
 				time: time / 1000,
 				entity: filePath,
@@ -233,7 +245,7 @@ export default class ObsidianWakatime extends Plugin {
 				is_write: isWrite,
 				cursorpos: cursorPosition !== undefined ? cursorPosition + 1 : undefined,
 				lineno: line !== undefined ? line + 1 : undefined,
-				editor: 'Obsidian',
+				plugin: plugin,
 				category: isWrite ? this.settings.writeCategory : this.settings.idleCategory
 			})
 		})
@@ -262,6 +274,40 @@ export default class ObsidianWakatime extends Plugin {
 				console.error('There was a problem with the fetch operation:', error);
 				this.lastRequestWasError = true;
 			});
+	}
+
+	/**
+	 * Wakatime detects the editor and OS from the User-Agent header, which we cannot set from
+	 * within Obsidian. The `plugin` field carries the same information instead, using the format
+	 * the official Wakatime browser plugins use: `(OS) editor/version plugin-name/version`.
+	 */
+	private getPluginIdentifier(): string {
+		const agent = `obsidian/${apiVersion} obsidian-wakatime/${this.manifest.version}`;
+		const os = this.getOperatingSystem();
+		return os ? `(${os}) ${agent}` : agent;
+	}
+
+	private getOperatingSystem(): string | null {
+		// check the mobile apps first, they also report as their desktop counterparts
+		if (Platform.isIosApp) return 'iOS';
+		if (Platform.isAndroidApp) return 'Android';
+		if (Platform.isMacOS) return 'Mac';
+		if (Platform.isWin) return 'Windows';
+		if (Platform.isLinux) return 'Linux';
+		return null;
+	}
+
+	private getMachineName(): string | null {
+		if (this.settings.machineName) return this.settings.machineName;
+		// the mobile apps have no hostname, so users have to set a name themselves
+		if (!Platform.isDesktopApp) return null;
+
+		try {
+			return require('os').hostname();
+		} catch (error) {
+			if (this.settings.debugModeEnabled) console.info('Could not detect the hostname', error);
+			return null;
+		}
 	}
 
 	private getProjectForFile(file: TFile): string {
@@ -358,6 +404,19 @@ class WakatimeSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.defaultProject ? this.plugin.settings.defaultProject : '')
 				.onChange(async (value) => {
 					this.plugin.settings.defaultProject = value !== '' ? value : null;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName('Machine name')
+			.setDesc('Name reported to Wakatime for this device. If empty, the hostname is used on desktop. Mobile devices report no machine unless you set a name here.')
+			.setClass('wakatimekvh-input')
+			.addText(text => text
+				.setPlaceholder('my-laptop')
+				.setValue(this.plugin.settings.machineName ? this.plugin.settings.machineName : '')
+				.onChange(async (value) => {
+					this.plugin.settings.machineName = value !== '' ? value : null;
 					await this.plugin.saveSettings();
 				})
 			);
